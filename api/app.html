@@ -54,30 +54,45 @@
       </div>
     </div>
   </div>
-  <div class="mt-4 text-center text-muted small">Node API state: <code>api/state.json</code></div>
+  <div class="mt-4 text-center text-muted small">ESP API state via HTTP endpoints</div>
 </div>
 
 <script>
-const API = '/api';
+const ESP_API = 'http://192.168.0.22'; // change IP to your ESP device
 
-async function apiGet(path) {
-  const resp = await fetch(`${API}${path}`);
+async function callEsp(url) {
+  const resp = await fetch(url, { mode: 'cors' });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
+  return resp;
 }
 
-async function apiPost(path) {
-  const resp = await fetch(`${API}${path}`);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+async function setState(params) {
+  const resp = await callEsp(`${ESP_API}/set?${params}`);
+  return resp.text();
+}
+
+async function getState(endpoint) {
+  const resp = await callEsp(`${ESP_API}/${endpoint}`);
   return resp.text();
 }
 
 async function refreshStatus() {
   try {
-    const data = await apiGet('/state');
-    document.getElementById('lampValue').innerText = data.lamp;
-    document.getElementById('ledValue').innerText = data.led;
-    document.getElementById('heartbeatValue').innerText = new Date(data.last_heartbeat*1000).toLocaleTimeString();
+    const lamp = (await getState('get?what=lamp')).trim();
+    const led = (await getState('get?what=led')).trim();
+    let heartbeat = Math.floor(Date.now()/1000);
+    
+    try {
+      const s = await getState('state');
+      const json = JSON.parse(s);
+      heartbeat = json.last_heartbeat || heartbeat;
+    } catch (_) {
+      // ignore parse
+    }
+
+    document.getElementById('lampValue').innerText = lamp;
+    document.getElementById('ledValue').innerText = led;
+    document.getElementById('heartbeatValue').innerText = new Date(heartbeat*1000).toLocaleTimeString();
     document.getElementById('connDot').className = 'status-dot status-online';
     document.getElementById('connText').innerText = 'ONLINE';
     document.getElementById('connAlert').className = 'alert alert-success p-2 mt-2';
@@ -90,11 +105,11 @@ async function refreshStatus() {
   }
 }
 
-async function setLamp(value) { const r = await apiPost(`/lamp/${value}`); evaluateResult(r); await refreshStatus(); }
-async function setLed(value) { const r = await apiPost(`/led/${value}`); evaluateResult(r); await refreshStatus(); }
-async function blinkLamp() { const r = await apiPost('/blink'); evaluateResult(r); }
-async function blinkLed() { const r = await apiPost('/ledblink'); evaluateResult(r); }
-async function sendHeartbeat() { const r = await apiPost('/heartbeat'); evaluateResult(r); await refreshStatus(); }
+async function setLamp(value) { const r = await setState(`lamp=${value}`); evaluateResult(r); await refreshStatus(); }
+async function setLed(value) { const r = await setState(`led=${value}`); evaluateResult(r); await refreshStatus(); }
+async function blinkLamp() { const r = await setState('blink=1'); evaluateResult(r); }
+async function blinkLed() { const r = await setState('ledblink=1'); evaluateResult(r); }
+async function sendHeartbeat() { const resp = await callEsp(`${ESP_API}/heartbeat`); const r = await resp.text(); evaluateResult(r); await refreshStatus(); }
 
 function evaluateResult(msg) { document.getElementById('actionResult').innerText = msg; }
 
