@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Car Safety System (JS App)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+  <style>
+    body { background: radial-gradient(circle at top, #2f3c58 0%, #0c0f1a 62%); color: #fff; min-height: 100vh; }
+    .glass { background: rgba(255,255,255,0.12); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.22); box-shadow: 0 12px 30px rgba(0,0,0,0.4); border-radius: 18px; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-online { background: #4caf50; }
+    .status-offline { background: #f44336; }
+  </style>
+</head>
+<body>
+<div class="container py-4">
+  <div class="text-center mb-4">
+    <h1 class="display-6">🚗 Car Dashboard</h1>
+    <p class="text-muted">Node/JS dashboard (no PHP needed)</p>
+  </div>
+  <div class="row gy-3">
+    <div class="col-md-4">
+      <div class="p-3 glass" id="sensor-card">
+        <h5>Sensor Data</h5>
+        <p class="mb-1">🔥 Temperature: <strong id="tempValue">-</strong></p>
+        <p class="mb-1">👶 Child in seat: <strong id="childValue">-</strong></p>
+        <p class="mb-1">🚗 Speed: <strong id="speedValue">-</strong></p>
+        <p class="mb-1">💡 Lamp (GPIO 5): <strong id="lampValue">-</strong></p>
+        <p class="mb-0">🔘 Integrated LED (GPIO 2): <strong id="ledValue">-</strong></p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 glass">
+        <h5>System Status</h5>
+        <p class="mb-1">Heartbeat: <strong id="heartbeatValue">-</strong></p>
+        <p class="mb-1"><span id="connDot" class="status-dot status-offline"></span><strong id="connText">OFFLINE</strong></p>
+        <div id="connAlert" class="alert alert-danger p-2 mt-2" role="alert">ESP disconnected</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 glass">
+        <h5>Controls</h5>
+        <div class="d-grid gap-2 mb-2">
+          <button class="btn btn-success" onclick="setLamp('ON')">Lamp ON</button>
+          <button class="btn btn-secondary" onclick="setLamp('OFF')">Lamp OFF</button>
+          <button class="btn btn-primary" onclick="setLed('ON')">LED ON</button>
+          <button class="btn btn-secondary" onclick="setLed('OFF')">LED OFF</button>
+          <button class="btn btn-danger" onclick="blinkLamp()">Blink Lamp</button>
+          <button class="btn btn-warning" onclick="blinkLed()">Blink Integrated LED</button>
+          <button class="btn btn-info" onclick="sendHeartbeat()">Heartbeat</button>
+        </div>
+        <div id="actionResult" class="text-white"></div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-4 text-center text-muted small">Node API state: <code>api/state.json</code></div>
+</div>
+
+<script>
+const API = '/api';
+
+async function apiGet(path) {
+  const resp = await fetch(`${API}${path}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+async function apiPost(path) {
+  const resp = await fetch(`${API}${path}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.text();
+}
+
+async function refreshStatus() {
+  try {
+    const data = await apiGet('/state');
+    document.getElementById('lampValue').innerText = data.lamp;
+    document.getElementById('ledValue').innerText = data.led;
+    document.getElementById('heartbeatValue').innerText = new Date(data.last_heartbeat*1000).toLocaleTimeString();
+    document.getElementById('connDot').className = 'status-dot status-online';
+    document.getElementById('connText').innerText = 'ONLINE';
+    document.getElementById('connAlert').className = 'alert alert-success p-2 mt-2';
+    document.getElementById('connAlert').innerText = 'ESP connected';
+  } catch (err) {
+    document.getElementById('connDot').className = 'status-dot status-offline';
+    document.getElementById('connText').innerText = 'OFFLINE';
+    document.getElementById('connAlert').className = 'alert alert-danger p-2 mt-2';
+    document.getElementById('connAlert').innerText = 'ESP disconnected';
+  }
+}
+
+async function setLamp(value) { const r = await apiPost(`/lamp/${value}`); evaluateResult(r); await refreshStatus(); }
+async function setLed(value) { const r = await apiPost(`/led/${value}`); evaluateResult(r); await refreshStatus(); }
+async function blinkLamp() { const r = await apiPost('/blink'); evaluateResult(r); }
+async function blinkLed() { const r = await apiPost('/ledblink'); evaluateResult(r); }
+async function sendHeartbeat() { const r = await apiPost('/heartbeat'); evaluateResult(r); await refreshStatus(); }
+
+function evaluateResult(msg) { document.getElementById('actionResult').innerText = msg; }
+
+(function init() {
+  const now = new Date();
+  document.getElementById('tempValue').innerText = `${18 + Math.floor(Math.random()*28)} °C`;
+  document.getElementById('childValue').innerText = Math.random() > 0.5 ? 'YES' : 'NO';
+  document.getElementById('speedValue').innerText = `${Math.floor(Math.random()*120)} km/h`;
+  refreshStatus();
+  setInterval(refreshStatus, 5000);
+})();
+</script>
+</body>
+</html>

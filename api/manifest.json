@@ -1,0 +1,21 @@
+{
+  "name": "Totvibel Car Safety",
+  "short_name": "CarSafety",
+  "description": "ESP-powered car safety dashboard with lamp control and heartbeat monitoring.",
+  "start_url": "app.php",
+  "display": "standalone",
+  "background_color": "#0c0f1a",
+  "theme_color": "#0c0f1a",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192.png?text=T",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512.png?text=T",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
